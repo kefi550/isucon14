@@ -152,3 +152,20 @@ CREATE TABLE coupons
   COMMENT 'クーポンテーブル';
 
 create index idx_ride_statuses_ride_id_created__at on ride_statuses(ride_id, created_at desc);
+
+/*
+  chair_locationsから総移動距離を求めるのは時間がかかるため、
+   - 最新の緯度経度
+   - 今までの総合計距離を保持
+*/
+DROP TABLE IF EXISTS chair_location_statistics;
+CREATE TABLE chair_location_statistics
+(
+  chair_id   VARCHAR(26) NOT NULL COMMENT '椅子ID',
+  latest_latitude   INTEGER     NOT NULL COMMENT 'chairの最新の経度',
+  latest_longitude  INTEGER     NOT NULL COMMENT 'chairの最新の緯度',
+  sum_distance      INTEGER     NOT NULL COMMENT 'chairの総移動距離',
+  updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '更新日時',
+  PRIMARY KEY (chair_id)
+)
+  COMMENT = '椅子の統計情報テーブル';
