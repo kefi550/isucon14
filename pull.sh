@@ -12,6 +12,9 @@ rsync -avr isu1:~/webapp/sql/ "${LOCAL_PATH}/webapp/sql/"
 
 rsync -avr isu1:~/webapp/openapi.yaml "${LOCAL_PATH}/webapp/openapi.yaml"
 
+# envの代表としてisu1だけとる
+rsync -avr isu1:~/env.sh "${LOCAL_PATH}/env.sh"
+
 for i in $(seq 1 3); do
   host="isu${i}"
   mkdir -p ${LOCAL_PATH}/${host}/etc/systemd/system/
