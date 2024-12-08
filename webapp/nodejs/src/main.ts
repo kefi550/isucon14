@@ -32,8 +32,9 @@ import {
 import type { Environment } from "./types/hono.js";
 import { execSync } from "node:child_process";
 import { internalGetMatching } from "./internal_handlers.js";
-import { createPool } from "mysql2/promise";
+import { createPool, type RowDataPacket } from "mysql2/promise";
 import { logger } from "hono/logger";
+import { type Chair, type ChairLocation } from "./types/models.js";
 
 const pool = createPool({
   host: process.env.ISUCON_DB_HOST || "127.0.0.1",
@@ -123,7 +124,6 @@ if (cluster.isPrimary) {
   );
 }
 
-
 async function postInitialize(ctx: Context<Environment>) {
   const body = await ctx.req.json<{ payment_server: string }>();
   try {
@@ -136,6 +136,82 @@ async function postInitialize(ctx: Context<Environment>) {
       "UPDATE settings SET value = ? WHERE name = 'payment_gateway_url'",
       [body.payment_server],
     );
+
+    const [chairLocations] = await ctx.var.dbConn.query<Array<ChairLocation & RowDataPacket>>(`
+      SELECT
+        *
+      FROM
+        chair_locations
+    `)
+
+    // chair_idごとにchair_locations の array を作成, 
+    const chairLocationsMap = chairLocations.reduce((acc, cur) => {
+      if (!acc[cur.chair_id]) {
+        acc[cur.chair_id] = [];
+      }
+      acc[cur.chair_id].push(cur);
+      return acc;
+    }, {} as { [key: string]: Array<ChairLocation & RowDataPacket> });
+
+    // chairLocationsMap の中身のarrayをcreatedAtの昇順にソート
+    for (const chairId in chairLocationsMap) {
+      chairLocationsMap[chairId].sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+    }
+
+    // sort 済みのchairLocationsMap を使って、以下を求める
+    // - 合計の移動距離
+    // - 最新の緯度
+    // - 最新の経度
+    // - 最新のcreated_at
+    const insertDataMap = Object.entries(chairLocationsMap).reduce((prev, [chairId, locations]) => {
+      const latest = locations.at(-1);
+      if(!latest) throw new Error("latest location is not found");
+
+      const sumDistance = locations.reduce((acc, cur, idx) => {
+        if (idx === 0) return 0;
+        const prev = locations[idx - 1];
+        return acc + Math.abs(cur.latitude - prev.latitude) + Math.abs(cur.longitude - prev.longitude);
+      }, 0);
+
+
+      const latestLatitude = latest.latitude;
+      const latestLongitude = latest.longitude;
+      const latestCreatedAt = latest.created_at;
+
+      return {
+        ...prev,
+        [chairId]: {
+          sumDistance,
+          latestLatitude,
+          latestLongitude,
+          latestCreatedAt
+        }
+      }
+    }, {} as { [key: string]: { sumDistance: number, latestLatitude: number, latestLongitude: number, latestCreatedAt: Date} });
+
+
+    // chair_location_statisticsにbulk insert
+    const insertData = Object.entries(insertDataMap).map(([chairId, data]) => {
+      return [
+        chairId,
+        data.latestLatitude,
+        data.latestLongitude,
+        data.sumDistance,
+        data.latestCreatedAt
+      ]
+    });
+
+    await ctx.var.dbConn.query(
+      `
+      INSERT INTO chair_location_statistics
+      (chair_id, latest_latitude, latest_longitude, sum_distance, updated_at)
+      VALUES ?
+      `,
+      [insertData]
+    )
+
+
+
   } catch (error) {
     return ctx.text(`Internal Server Error\n${error}`, 500);
   }

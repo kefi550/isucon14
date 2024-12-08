@@ -32,7 +32,9 @@ CREATE TABLE chairs
   access_token VARCHAR(255) NOT NULL COMMENT 'アクセストークン',
   created_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '登録日時',
   updated_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新日時',
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  INDEX idx_owner_id (owner_id),
+  INDEX idx_access_token (access_token)
 )
   COMMENT = '椅子情報テーブル';
 
@@ -44,7 +46,9 @@ CREATE TABLE chair_locations
   latitude   INTEGER     NOT NULL COMMENT '経度',
   longitude  INTEGER     NOT NULL COMMENT '緯度',
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '登録日時',
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  INDEX idx_chair_id (chair_id),
+  INDEX idx_chair_id_created_at_desc (chair_id, created_at DESC)
 )
   COMMENT = '椅子の現在位置情報テーブル';
 
@@ -90,7 +94,10 @@ CREATE TABLE rides
   evaluation            INTEGER     NULL     COMMENT '評価',
   created_at            DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '要求日時',
   updated_at            DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '状態更新日時',
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  INDEX idx_user_id (user_id),
+  INDEX idx_chair_id (chair_id),
+  INDEX idx_updated_at (updated_at)
 )
   COMMENT = 'ライド情報テーブル';
 
@@ -103,7 +110,9 @@ CREATE TABLE ride_statuses
   created_at      DATETIME(6)                                                                NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '状態変更日時',
   app_sent_at     DATETIME(6)                                                                NULL COMMENT 'ユーザーへの状態通知日時',
   chair_sent_at   DATETIME(6)                                                                NULL COMMENT '椅子への状態通知日時',
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  INDEX idx_ride_id (ride_id),
+  INDEX idx_created_at (created_at)
 )
   COMMENT = 'ライドステータスの変更履歴テーブル';
 
@@ -131,6 +140,27 @@ CREATE TABLE coupons
   discount   INTEGER      NOT NULL COMMENT '割引額',
   created_at DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '付与日時',
   used_by    VARCHAR(26)  NULL COMMENT 'クーポンが適用されたライドのID',
-  PRIMARY KEY (user_id, code)
+  PRIMARY KEY (user_id, code),
+  INDEX idx_user_id (user_id),
+  INDEX idx_created_at (created_at)
 )
   COMMENT 'クーポンテーブル';
+
+create index idx_ride_statuses_ride_id_created__at on ride_statuses(ride_id, created_at desc);
+
+/*
+  chair_locationsから総移動距離を求めるのは時間がかかるため、
+   - 最新の緯度経度
+   - 今までの総合計距離を保持
+*/
+DROP TABLE IF EXISTS chair_location_statistics;
+CREATE TABLE chair_location_statistics
+(
+  chair_id   VARCHAR(26) NOT NULL COMMENT '椅子ID',
+  latest_latitude   INTEGER     NOT NULL COMMENT 'chairの最新の経度',
+  latest_longitude  INTEGER     NOT NULL COMMENT 'chairの最新の緯度',
+  sum_distance      INTEGER     NOT NULL COMMENT 'chairの総移動距離',
+  updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '更新日時',
+  PRIMARY KEY (chair_id)
+)
+  COMMENT = '椅子の統計情報テーブル';
