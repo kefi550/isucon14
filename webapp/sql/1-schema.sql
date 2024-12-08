@@ -169,3 +169,39 @@ CREATE TABLE chair_location_statistics
   PRIMARY KEY (chair_id)
 )
   COMMENT = '椅子の統計情報テーブル';
+
+
+/*
+  最新のride statusを取得するためのtable
+*/
+
+DROP TABLE IF EXISTS latest_ride_statuses;
+CREATE TABLE latest_ride_statuses
+(
+  ride_id VARCHAR(26)                                                                        NOT NULL COMMENT 'ライドID',
+  status          ENUM ('MATCHING', 'ENROUTE', 'PICKUP', 'CARRYING', 'ARRIVED', 'COMPLETED') NOT NULL COMMENT '状態',
+  created_at      DATETIME(6)                                                                NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '状態変更日時',
+  app_sent_at     DATETIME(6)                                                                NULL COMMENT 'ユーザーへの状態通知日時',
+  chair_sent_at   DATETIME(6)                                                                NULL COMMENT '椅子への状態通知日時',
+  PRIMARY KEY (ride_id),
+  INDEX idx_status (status)
+)
+  COMMENT = '最新のライドステータステーブル';
+
+/* ride_statusが変更された時に、latest_ride_statusesも同期する */
+DROP TRIGGER IF EXISTS update_latest_ride_statuses;
+DELIMITER $$
+CREATE TRIGGER update_latest_ride_statuses
+AFTER INSERT ON ride_statuses
+FOR EACH ROW
+BEGIN
+  INSERT INTO latest_ride_statuses (ride_id, status, created_at, app_sent_at, chair_sent_at)
+  VALUES (NEW.ride_id, NEW.status, NEW.created_at, NEW.app_sent_at, NEW.chair_sent_at)
+  ON DUPLICATE KEY UPDATE
+  status = NEW.status,
+  created_at = NEW.created_at,
+  app_sent_at = NEW.app_sent_at,
+  chair_sent_at = NEW.chair_sent_at;
+END;
+$$
+DELIMITER ;
