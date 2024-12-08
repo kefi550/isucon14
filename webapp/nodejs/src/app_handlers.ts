@@ -670,55 +670,123 @@ export const appGetNearbyChairs = async (ctx: Context<Environment>) => {
       model: string;
       current_coordinate: Coordinate;
     }> = [];
-    for (const chair of chairs) {
-      const [rides] = await ctx.var.dbConn.query<Array<Ride & RowDataPacket>>(
-        "SELECT * FROM rides WHERE chair_id = ? ORDER BY created_at DESC",
-        [chair.id],
-      );
-      let skip = false;
-      for (const ride of rides) {
-        // 過去にライドが存在し、かつ、それが完了していない場合はスキップ
-        const status = await getLatestRideStatus(ctx.var.dbConn, ride.id);
-        if (status !== "COMPLETED") {
-          skip = true;
-          break;
-        }
-      }
-      if (skip) {
-        continue;
-      }
+    const chairIds = [...new Set(chairs.map(c => c.id))]
+    console.log("####### chairIds #######")
+    console.log(chairIds.length)
+    const [rides] = await ctx.var.dbConn.query<Array<Ride & RowDataPacket>>(
+      `
+      with latest_ride AS (
+        select r.*
+        from chairs c
+        left join rides r ON c.id = r.chair_id
+        where
+          NOT EXISTS (
+            select 1 from rides sub_r
+            where c.id = sub_r.chair_id AND sub_r.created_at > r.created_at
+          )
+      )
+      SELECT c.id, c.is_active, lrs.status
+      FROM chairs c
+      INNER JOIN latest_ride lr on c.id = lr.chair_id
+      INNER JOIN latest_ride_statuses lrs on lr.id = lrs.ride_id
+      WHERE c.is_active and lrs.status = "COMPLETED"
+      `
+    );
 
+    const rideableChairs = [...new Set(rides.map(r => r.chair_id))]
+    console.log("####### rideableChairs #######")
+    console.log(rideableChairs)
+    if (rideableChairs.length > 0) {
+      console.log("####### exist rideableChairs #######")
       // 最新の位置情報を取得
-      const [[chairLocation]] = await ctx.var.dbConn.query<
+      const [chairLocations] = await ctx.var.dbConn.query<
         Array<ChairLocation & RowDataPacket>
       >(
-        "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY created_at DESC LIMIT 1",
-        [chair.id],
+        `
+        SELECT c.id, c.name, c.model, cl.latitude, cl.longitude
+        FROM chair_locations cl
+        INNER JOIN (
+            SELECT chair_id, MAX(created_at) AS latest_created_at
+            FROM chair_locations
+            WHERE chair_id IN ?
+            GROUP BY chair_id
+        ) latest_chairs
+        ON cl.chair_id = latest_chairs.chair_id AND cl.created_at = latest_chairs.latest_created_at
+        INNER JOIN chairs c on cl.chair_id = c.id
+        `,
+        [[rideableChairs]],
       );
 
-      if (!chairLocation) {
-        continue;
-      }
-
-      if (
-        calculateDistance(
-          coordinate.latitude,
-          coordinate.longitude,
-          chairLocation.latitude,
-          chairLocation.longitude,
-        ) <= distance
-      ) {
-        nearbyChairs.push({
-          id: chair.id,
-          name: chair.name,
-          model: chair.model,
-          current_coordinate: {
-            latitude: chairLocation.latitude,
-            longitude: chairLocation.longitude,
-          },
-        });
+      for (const chairLocation of chairLocations) {
+        if (
+          calculateDistance(
+            coordinate.latitude,
+            coordinate.longitude,
+            chairLocation.latitude,
+            chairLocation.longitude,
+          ) <= distance
+        ) {
+          nearbyChairs.push({
+            id: chairLocation.id,
+            name: chairLocation.name,
+            model: chairLocation.model,
+            current_coordinate: {
+              latitude: chairLocation.latitude,
+              longitude: chairLocation.longitude,
+            },
+          });
+        }
       }
     }
+    // for (const chair of chairs) {
+    //   const [rides] = await ctx.var.dbConn.query<Array<Ride & RowDataPacket>>(
+    //     "SELECT * FROM rides WHERE chair_id = ? ORDER BY created_at DESC",
+    //     [chair.id],
+    //   );
+    //   let skip = false;
+    //   for (const ride of rides) {
+    //     // 過去にライドが存在し、かつ、それが完了していない場合はスキップ
+    //     const status = await getLatestRideStatus(ctx.var.dbConn, ride.id);
+    //     if (status !== "COMPLETED") {
+    //       skip = true;
+    //       break;
+    //     }
+    //   }
+    //   if (skip) {
+    //     continue;
+    //   }
+
+    //   // 最新の位置情報を取得
+    //   const [[chairLocation]] = await ctx.var.dbConn.query<
+    //     Array<ChairLocation & RowDataPacket>
+    //   >(
+    //     "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY created_at DESC LIMIT 1",
+    //     [chair.id],
+    //   );
+
+    //   if (!chairLocation) {
+    //     continue;
+    //   }
+
+    //   if (
+    //     calculateDistance(
+    //       coordinate.latitude,
+    //       coordinate.longitude,
+    //       chairLocation.latitude,
+    //       chairLocation.longitude,
+    //     ) <= distance
+    //   ) {
+    //     nearbyChairs.push({
+    //       id: chair.id,
+    //       name: chair.name,
+    //       model: chair.model,
+    //       current_coordinate: {
+    //         latitude: chairLocation.latitude,
+    //         longitude: chairLocation.longitude,
+    //       },
+    //     });
+    //   }
+    // }
 
     const [[{ "CURRENT_TIMESTAMP(6)": retrievedAt }]] =
       await ctx.var.dbConn.query<
@@ -733,6 +801,7 @@ export const appGetNearbyChairs = async (ctx: Context<Environment>) => {
       200,
     );
   } catch (err) {
+    console.log (err);
     await ctx.var.dbConn.rollback();
     return ctx.text(`${err}`, 500);
   }
