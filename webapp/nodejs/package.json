@@ -2,7 +2,7 @@
   "name": "nodejs",
   "type": "module",
   "scripts": {
-    "start": "tsc && NEW_RELIC_APP_NAME=isucon14 NEW_RELIC_LICENSE_KEY=ad7f11aab0f6fe0b59632bb2fff1c11fFFFFNRAL node -r newrelic dist/main.js",
+    "start": "tsc && node dist/main.js",
     "dev": "tsx watch src/main.ts"
   },
   "dependencies": {
