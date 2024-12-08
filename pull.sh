@@ -7,6 +7,11 @@ LOCAL_PATH="."
 mkdir -p ${LOCAL_PATH}/webapp/nodejs/
 rsync -avr isu1:~/webapp/nodejs/ "${LOCAL_PATH}/webapp/nodejs/"
 
+mkdir -p ${LOCAL_PATH}/webapp/sql/
+rsync -avr isu1:~/webapp/sql/ "${LOCAL_PATH}/webapp/sql/"
+
+rsync -avr isu1:~/webapp/openapi.yaml "${LOCAL_PATH}/webapp/openapi.yaml"
+
 for i in $(seq 1 3); do
   host="isu${i}"
   mkdir -p ${LOCAL_PATH}/${host}/etc/systemd/system/
