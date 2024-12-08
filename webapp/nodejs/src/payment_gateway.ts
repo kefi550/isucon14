@@ -54,7 +54,10 @@ export const requestPaymentGatewayPostPayment = async (
     } catch (err) {
       if (retry < 5) {
         retry++;
-        await setTimeout(100);
+
+        // 指数バックオフ
+        const waitMillSec = 2 ** retry * 100;
+        await setTimeout(waitMillSec);
       } else {
         throw err;
       }
