@@ -94,9 +94,9 @@ export const chairPostCoordinate = async (ctx: Context<Environment>) => {
       INSERT INTO chair_location_statistics (chair_id, latest_latitude, latest_longitude, sum_distance, updated_at)
       VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP(6))
       ON DUPLICATE KEY UPDATE
+      sum_distance = sum_distance + ABS(VALUES(latest_latitude) - latest_latitude) + ABS(VALUES(latest_longitude) - latest_longitude),
       latest_latitude = VALUES(latest_latitude),
       latest_longitude = VALUES(latest_longitude),
-      sum_distance = sum_distance + ABS(VALUES(latest_latitude) - latest_latitude) + ABS(VALUES(latest_longitude) - latest_longitude),
       updated_at = CURRENT_TIMESTAMP(6)
       `,
       [chair.id, reqJson.latitude, reqJson.longitude],
