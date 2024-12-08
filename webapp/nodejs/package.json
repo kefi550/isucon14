@@ -2,13 +2,14 @@
   "name": "nodejs",
   "type": "module",
   "scripts": {
-    "start": "tsc && node dist/main.js",
+    "start": "tsc && NEW_RELIC_APP_NAME=isucon14 NEW_RELIC_LICENSE_KEY=ad7f11aab0f6fe0b59632bb2fff1c11fFFFFNRAL node -r newrelic dist/main.js",
     "dev": "tsx watch src/main.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
     "hono": "^4.6.12",
     "mysql2": "^3.11.4",
+    "newrelic": "^12.8.1",
     "typescript": "^5.7.2",
     "ulid": "^2.3.0"
   },
@@ -16,5 +17,8 @@
     "@biomejs/biome": "1.9.4",
     "@types/node": "^20.11.17",
     "tsx": "^4.7.1"
+  },
+  "volta": {
+    "node": "22.12.0"
   }
 }
