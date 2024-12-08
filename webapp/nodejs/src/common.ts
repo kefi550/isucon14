@@ -47,7 +47,7 @@ export const getLatestRideStatus = async (
   const [[{ status }]] = await dbConn.query<
     Array<Pick<RideStatus, "status"> & RowDataPacket>
   >(
-    "SELECT status FROM ride_statuses WHERE ride_id = ? ORDER BY created_at DESC LIMIT 1",
+    "SELECT status FROM latest_ride_statuses WHERE ride_id = ?",
     [rideId],
   );
   return status;
