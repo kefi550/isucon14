@@ -662,7 +662,7 @@ export const appGetNearbyChairs = async (ctx: Context<Environment>) => {
   await ctx.var.dbConn.beginTransaction();
   try {
     const [chairs] = await ctx.var.dbConn.query<Array<Chair & RowDataPacket>>(
-      "SELECT * FROM chairs",
+      "SELECT * FROM chairs where is_active",
     );
     const nearbyChairs: Array<{
       id: string;
@@ -671,7 +671,6 @@ export const appGetNearbyChairs = async (ctx: Context<Environment>) => {
       current_coordinate: Coordinate;
     }> = [];
     for (const chair of chairs) {
-      if (!chair.is_active) continue;
       const [rides] = await ctx.var.dbConn.query<Array<Ride & RowDataPacket>>(
         "SELECT * FROM rides WHERE chair_id = ? ORDER BY created_at DESC",
         [chair.id],
