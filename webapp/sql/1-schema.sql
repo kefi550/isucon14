@@ -48,7 +48,9 @@ CREATE TABLE chair_locations
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '登録日時',
   PRIMARY KEY (id),
   INDEX idx_chair_id (chair_id),
-  INDEX idx_chair_id_created_at_desc (chair_id, created_at DESC)
+  INDEX idx_chair_id_created_at_desc (chair_id, created_at DESC),
+  INDEX idx_id (id)
+
 )
   COMMENT = '椅子の現在位置情報テーブル';
 
@@ -97,7 +99,9 @@ CREATE TABLE rides
   PRIMARY KEY (id),
   INDEX idx_user_id (user_id),
   INDEX idx_chair_id (chair_id),
-  INDEX idx_updated_at (updated_at)
+  INDEX idx_user_id_created_at (user_id, created_at DESC),
+  INDEX idx_chair_id_updated_at (chair_id, updated_at DESC)
+
 )
   COMMENT = 'ライド情報テーブル';
 
@@ -111,8 +115,8 @@ CREATE TABLE ride_statuses
   app_sent_at     DATETIME(6)                                                                NULL COMMENT 'ユーザーへの状態通知日時',
   chair_sent_at   DATETIME(6)                                                                NULL COMMENT '椅子への状態通知日時',
   PRIMARY KEY (id),
-  INDEX idx_ride_id (ride_id),
-  INDEX idx_created_at (created_at)
+  INDEX idx_ride_id_created_at_desc (ride_id, created_at desc),
+  INDEX idx_ride_id_created_at_asc (ride_id, created_at asc)
 )
   COMMENT = 'ライドステータスの変更履歴テーブル';
 
@@ -142,7 +146,8 @@ CREATE TABLE coupons
   used_by    VARCHAR(26)  NULL COMMENT 'クーポンが適用されたライドのID',
   PRIMARY KEY (user_id, code),
   INDEX idx_user_id (user_id),
-  INDEX idx_created_at (created_at)
+  INDEX idx_created_at (created_at),
+  INDEX idx_used_by (used_by)
 )
   COMMENT 'クーポンテーブル';
 
