@@ -70,38 +70,6 @@ export const chairPostCoordinate = async (ctx: Context<Environment>) => {
       "INSERT INTO chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)",
       [chairLocationID, chair.id, reqJson.latitude, reqJson.longitude],
     );
-
-    /*
-      DROP TABLE IF EXISTS chair_location_statistics;
-      CREATE TABLE chair_location_statistics
-      (
-        chair_id   VARCHAR(26) NOT NULL COMMENT '椅子ID',
-        latest_latitude   INTEGER     NOT NULL COMMENT 'chairの最新の経度',
-        latest_longitude  INTEGER     NOT NULL COMMENT 'chairの最新の緯度',
-        sum_distance      INTEGER     NOT NULL COMMENT 'chairの総移動距離',
-        updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '更新日時',
-        PRIMARY KEY (chair_id)
-      )
-        COMMENT = '椅子の統計情報テーブル';
-    */
-
-    // chair location statistics を更新
-    // chair id が conflictしたら更新(sum_distanceは statistics.latest_latitude の元々の値と updateした値をかさんする)
-    // confilctしなかったら新規追加
-    //mysqlで実行する
-    await ctx.var.dbConn.query(
-      `
-      INSERT INTO chair_location_statistics (chair_id, latest_latitude, latest_longitude, sum_distance, updated_at)
-      VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP(6))
-      ON DUPLICATE KEY UPDATE
-      latest_latitude = VALUES(latest_latitude),
-      latest_longitude = VALUES(latest_longitude),
-      sum_distance = sum_distance + ABS(VALUES(latest_latitude) - latest_latitude) + ABS(VALUES(latest_longitude) - latest_longitude),
-      updated_at = CURRENT_TIMESTAMP(6)
-      `,
-      [chair.id, reqJson.latitude, reqJson.longitude],
-    );
-
     const [[location]] = await ctx.var.dbConn.query<
       Array<ChairLocation & RowDataPacket>
     >("SELECT * FROM chair_locations WHERE id = ?", [chairLocationID]);

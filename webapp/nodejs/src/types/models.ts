@@ -80,12 +80,3 @@ export type Coordinate = {
   latitude: number;
   longitude: number;
 };
-
-
-export type ChairLocationStatistics = {
-  chair_id: string;
-  latest_latitude: number;
-  latest_longitude: number;
-  sum_distance: number;
-  updated_at: Date;
-};

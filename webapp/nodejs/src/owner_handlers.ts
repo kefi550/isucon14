@@ -6,7 +6,6 @@ import type { RowDataPacket } from "mysql2";
 import type { Chair, Ride } from "./types/models.js";
 import { calculateSale } from "./common.js";
 import { ulid } from "ulid";
-import type { ChairLocationStatistics } from "./types/models.js";
 
 export const ownerPostOwners = async (ctx: Context<Environment>) => {
   const reqJson = await ctx.req.json<{ name: string }>();
@@ -103,49 +102,50 @@ type OwnerGetChairsResponseChair = {
 };
 
 export const ownerGetChairs = async (ctx: Context<Environment>) => {
-  try {
-    const owner = ctx.var.owner;
-    // chair_location_statisticsを使用して, chairsの情報を取得
-    const [chairs] = await ctx.var.dbConn.query<Array<ChairWithDetail & RowDataPacket>>(
-      `
-      SELECT
-        chairs.id,
-        chairs.owner_id,
-        chairs.name,
-        chairs.access_token,
-        chairs.model,
-        chairs.is_active,
-        chairs.created_at,
-        chairs.updated_at,
-        IFNULL(sum_distance, 0) AS total_distance,
-        chair_location_statistics.updated_at as total_distance_updated_at
-      FROM chairs
-      LEFT JOIN chair_location_statistics ON chair_location_statistics.chair_id = chairs.id
-      WHERE owner_id = ?
-      `,
-      [owner.id],
-    );
+  const owner = ctx.var.owner;
+  const [chairs] = await ctx.var.dbConn.query<
+    Array<ChairWithDetail & RowDataPacket>
+  >(
+    `SELECT id,
+       owner_id,
+       name,
+       access_token,
+       model,
+       is_active,
+       created_at,
+       updated_at,
+       IFNULL(total_distance, 0) AS total_distance,
+       total_distance_updated_at
+FROM chairs
+       LEFT JOIN (SELECT chair_id,
+                          SUM(IFNULL(distance, 0)) AS total_distance,
+                          MAX(created_at)          AS total_distance_updated_at
+                   FROM (SELECT chair_id,
+                                created_at,
+                                ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
+                                ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
+                         FROM chair_locations) tmp
+                   GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
+WHERE owner_id = ?`,
+    [owner.id],
+  );
 
-    const chairResponse = chairs.map((chair) => {
-      const c: OwnerGetChairsResponseChair = {
-        id: chair.id,
-        name: chair.name,
-        model: chair.model,
-        active: !!chair.is_active,
-        registered_at: chair.created_at.getTime(),
-        total_distance: Number(chair.total_distance),
-      };
-      if (chair.total_distance_updated_at) {
-        c.total_distance_updated_at = chair.total_distance_updated_at.getTime();
-      }
-      return c;
-    });
+  const chairResponse = chairs.map((chair) => {
+    const c: OwnerGetChairsResponseChair = {
+      id: chair.id,
+      name: chair.name,
+      model: chair.model,
+      active: !!chair.is_active,
+      registered_at: chair.created_at.getTime(),
+      total_distance: Number(chair.total_distance),
+    };
+    if (chair.total_distance_updated_at) {
+      c.total_distance_updated_at = chair.total_distance_updated_at.getTime();
+    }
+    return c;
+  });
 
-    return ctx.json({ chairs: chairResponse });
-  } catch (e) {
-    console.error(e);
-    return ctx.text(`${e}`, 500);
-  }
+  return ctx.json({ chairs: chairResponse });
 };
 
 function sumSales(rides: Ride[]) {
