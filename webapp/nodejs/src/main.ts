@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import cluster from "cluster";
 import { Hono, type Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import {
@@ -101,15 +102,27 @@ app.post(
 app.get("/api/internal/matching", internalGetMatching);
 
 const port = 8080;
-serve(
-  {
-    fetch: app.fetch,
-    port,
-  },
-  (addr) => {
-    console.log(`Server is running on http://localhost:${addr.port}`);
-  },
-);
+
+// 2コアでclusterを立てる
+if (cluster.isPrimary) {
+  for (let i = 0; i < 2; i++) {
+    cluster.fork();
+  }
+  cluster.on("exit", (worker, code, signal) => {
+    console.log(`worker ${worker.process.pid} died`);
+  });
+} else {
+  serve(
+    {
+      fetch: app.fetch,
+      port,
+    },
+    (addr) => {
+      console.log(`Server is running on http://localhost:${addr.port}`);
+    },
+  );
+}
+
 
 async function postInitialize(ctx: Context<Environment>) {
   const body = await ctx.req.json<{ payment_server: string }>();
