@@ -589,46 +589,20 @@ async function getChairStats(
   dbConn: Connection,
   chairId: string,
 ): Promise<AppGetNotificationResponseChairStats> {
-  const [rides] = await dbConn.query<Array<Ride & RowDataPacket>>(
-    "SELECT * FROM rides WHERE chair_id = ? ORDER BY updated_at DESC",
+  const [[{ totalRidesCount, totalEvaluation }]] = await dbConn.query<
+    Array<{ totalRidesCount: number; totalEvaluation: number } & RowDataPacket>
+  >(
+    `SELECT COUNT(*) as totalRidesCount, COALESCE(AVG(evaluation), 0) as totalEvaluation
+     FROM rides
+     WHERE chair_id = ? AND id IN (
+       SELECT ride_id FROM ride_statuses WHERE status = 'COMPLETED'
+     )`,
     [chairId],
   );
 
-  let totalRidesCount = 0;
-  let totalEvaluation = 0.0;
-  for (const ride of rides) {
-    const [rideStatuses] = await dbConn.query<
-      Array<RideStatus & RowDataPacket>
-    >("SELECT * FROM ride_statuses WHERE ride_id = ? ORDER BY created_at", [
-      ride.id,
-    ]);
-    let arrivedAt: Date | undefined;
-    let pickupedAt: Date | undefined;
-    let isCompleted = false;
-    for (const status of rideStatuses) {
-      if (status.status === "ARRIVED") {
-        arrivedAt = status.created_at;
-      } else if (status.status === "CARRYING") {
-        pickupedAt = status.created_at;
-      }
-      if (status.status === "COMPLETED") {
-        isCompleted = true;
-      }
-      if (!arrivedAt || !pickupedAt) {
-        continue;
-      }
-      if (!isCompleted) {
-        continue;
-      }
-
-      totalRidesCount++;
-      totalEvaluation += ride.evaluation ?? 0;
-    }
-  }
   return {
     total_rides_count: totalRidesCount,
-    total_evaluation_avg:
-      totalRidesCount > 0 ? totalEvaluation / totalRidesCount : 0,
+    total_evaluation_avg: totalEvaluation,
   };
 }
 
