@@ -134,3 +134,5 @@ CREATE TABLE coupons
   PRIMARY KEY (user_id, code)
 )
   COMMENT 'クーポンテーブル';
+
+create index idx_ride_statuses_ride_id_created__at on ride_statuses(ride_id, created_at desc);
