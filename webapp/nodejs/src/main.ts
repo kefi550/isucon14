@@ -33,6 +33,7 @@ import type { Environment } from "./types/hono.js";
 import { execSync } from "node:child_process";
 import { internalGetMatching } from "./internal_handlers.js";
 import { createPool, type RowDataPacket } from "mysql2/promise";
+import { logger } from 'hono/logger';
 import { type Chair, type ChairLocation } from "./types/models.js";
 
 const pool = createPool({
@@ -45,6 +46,7 @@ const pool = createPool({
 });
 
 const app = new Hono<Environment>();
+app.use(logger());
 app.use(
   createMiddleware<Environment>(async (ctx, next) => {
     const connection = await pool.getConnection();
