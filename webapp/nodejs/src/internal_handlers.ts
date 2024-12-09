@@ -12,15 +12,16 @@ export const internalGetMatching = async (ctx: Context<Environment>) => {
   if (!ride) {
     return ctx.body(null, 204);
   }
-  let matched!: Chair & RowDataPacket;
   let empty = false;
+  const [matches] = await ctx.var.dbConn.query<Array<Chair & RowDataPacket>>(
+    "SELECT id FROM chairs WHERE is_active = TRUE ORDER BY RAND() LIMIT 10",
+  );
+  if (!matches) {
+    return ctx.body(null, 204);
+  }
   for (let i = 0; i < 10; i++) {
-    [[matched]] = await ctx.var.dbConn.query<Array<Chair & RowDataPacket>>(
-      "SELECT id FROM chairs WHERE is_active = TRUE ORDER BY RAND() LIMIT 1",
-    );
-    if (!matched) {
-      return ctx.body(null, 204);
-    }
+    const matched = matches.pop()
+    if (!matched) break;
     const [[result]] = await ctx.var.dbConn.query<
       Array<{ "COUNT(*) = 0": number } & RowDataPacket>
     >(
@@ -29,16 +30,12 @@ export const internalGetMatching = async (ctx: Context<Environment>) => {
     );
     empty = !!result["COUNT(*) = 0"];
     if (empty) {
+      await ctx.var.dbConn.query("UPDATE rides SET chair_id = ? WHERE id = ?", [
+        matched.id,
+        ride.id,
+      ]);
       break;
     }
   }
-  if (!empty) {
-    return ctx.body(null, 204);
-  }
-  await ctx.var.dbConn.query("UPDATE rides SET chair_id = ? WHERE id = ?", [
-    matched.id,
-    ride.id,
-  ]);
-
   return ctx.body(null, 204);
 };
