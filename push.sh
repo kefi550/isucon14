@@ -13,4 +13,4 @@ for i in $(seq 1 3); do
   ssh ${host} 'bash -l -c "sudo logrotate -f /etc/logrotate.conf; sudo systemctl restart isuride-node;"'
 done
 
-ssh isu2 'bash -l -c "sudo systemctl restart isuride-matcher;"'
+ssh isu3 'bash -l -c "sudo systemctl restart isuride-matcher;"'

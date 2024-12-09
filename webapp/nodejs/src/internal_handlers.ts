@@ -16,7 +16,7 @@ export const internalGetMatching = async (ctx: Context<Environment>) => {
   let empty = false;
   for (let i = 0; i < 10; i++) {
     [[matched]] = await ctx.var.dbConn.query<Array<Chair & RowDataPacket>>(
-      "SELECT * FROM chairs INNER JOIN (SELECT id FROM chairs WHERE is_active = TRUE ORDER BY RAND() LIMIT 1) AS tmp ON chairs.id = tmp.id LIMIT 1",
+      "SELECT id FROM chairs WHERE is_active = TRUE ORDER BY RAND() LIMIT 1",
     );
     if (!matched) {
       return ctx.body(null, 204);
