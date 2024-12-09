@@ -19,7 +19,8 @@ for i in $(seq 1 3); do
   host="isu${i}"
   mkdir -p ${LOCAL_PATH}/${host}/etc/systemd/system/
   rsync -avr ${host}:/etc/hosts "${LOCAL_PATH}/${host}/etc/"
-  rsync -avr ${host}:/etc/systemd/system/isuports.service "${LOCAL_PATH}/${host}/etc/systemd/system/"
+  rsync -avr ${host}:/etc/systemd/system/isuride-matcher.service "${LOCAL_PATH}/${host}/etc/systemd/system/"
+  rsync -avr ${host}:/etc/systemd/system/isuride-node.service "${LOCAL_PATH}/${host}/etc/systemd/system/"
   mkdir -p ${LOCAL_PATH}/${host}/etc/mysql/
   rsync -avr ${host}:/etc/mysql/ "${LOCAL_PATH}/${host}/etc/mysql/"
   mkdir -p ${LOCAL_PATH}/${host}/etc/nginx/
